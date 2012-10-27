@@ -10,6 +10,8 @@
 #include <unistd.h>
 #include <pthread.h>
 
+#include <errno.h>
+
 #define BUFFERLENGTH 256
 
 /* displays error messages from system calls */
@@ -22,14 +24,14 @@ void error(char *msg)
 int checkvalid (char *entry) {
 
   if ((!isalnum(entry[0])) || (strchr(entry,':') == NULL)) {
-    printf ("Failed at condition 1");
+    printf ("Failed at condition 1\n");
     return -1;
   }
 
   int i = 0;
   while (entry[i] != ':') {
     if (!isalnum(entry[i])) {
-      printf ("Failed at condition 2");
+      printf ("Failed at condition 2\n");
       return -1;
     }
     i++;
@@ -58,9 +60,38 @@ void *processRequest (void *args) {
   char buffer[BUFFERLENGTH];
   int n;
   while (1) {
+    // int readTest = recv( *newsockfd, NULL, 0, MSG_DONTWAIT | MSG_PEEK );
+    // printf("ReadTest: %d\n", readTest);
+    // if (errno != 0){
+    //   printf("Errno: %d\n",errno);
+
+    //   close (*newsockfd); /* important to avoid memory leak */  
+    //   free (*newsockfd);
+
+    //   returnValue = errno;   //cannot guarantee that it stays constant 
+    //   pthread_exit (&returnValue);
+
+
+    //   // shutdown(*newsockfd,SHUT_RDWR);
+    //   // close(*newsockfd);
+    //   // return;
+    // }
+    // if (readTest == 0){
+    //   printf("Tom says: Connection Reset By Peer\n");
+
+    //   printf("Errno: %d\n",errno);
+    //   //return;
+    // }
     n = read (*newsockfd, buffer, BUFFERLENGTH -1);
-    if (n < 0) 
+    if (n < 0) {
       error ("ERROR reading from socket");
+      shutdown(*newsockfd,SHUT_RDWR);
+      close(*newsockfd);
+      free (*newsockfd);
+      printf("Errno: %d\n",errno);
+      returnValue = -1;  /* cannot guarantee that it stays constant */
+      pthread_exit (&returnValue);
+    }
 
     //if (strchr(buffer,EOF) != NULL) {
 
@@ -76,11 +107,18 @@ void *processRequest (void *args) {
         printf ("Good.\n");
         n = sprintf (buffer, "Entry accepted.\n");
         n = write (*newsockfd, buffer, BUFFERLENGTH);
-        if (n < 0)
+        if (n < 0){
          error ("ERROR writing to socket");
+         shutdown(*newsockfd,SHUT_RDWR);
+      close(*newsockfd);
+      free (*newsockfd);
+      printf("Errno: %d\n",errno);
+      returnValue = -1;  /* cannot guarantee that it stays constant */
+      pthread_exit (&returnValue);
+       }
       } else {
         bzero (buffer, BUFFERLENGTH);
-        printf ("Bad.");
+        printf ("Bad.\n");
         n = sprintf (buffer, "Entry malformed and not accepted.\n");
         n = write (*newsockfd, buffer, BUFFERLENGTH);
         if (n < 0)
@@ -88,7 +126,7 @@ void *processRequest (void *args) {
       }
 
       pthread_mutex_unlock (&mut); /* release the lock */
-      printf ("Unlocked.");
+      printf ("Unlocked.\n");
       //bzero (buffer, BUFFERLENGTH);
     //} else {
     //  printf("received EOF");
@@ -180,7 +218,7 @@ int main(int argc, char *argv[]) {
       exit (1);
     }
 
-    if (pthread_attr_setdetachstate (&pthread_attr, !PTHREAD_CREATE_DETACHED)) {
+    if (pthread_attr_setdetachstate (&pthread_attr, PTHREAD_CREATE_DETACHED)) {
    	  fprintf (stderr, "setting thread attributes failed!\n");
       exit (1);
     }
