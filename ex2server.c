@@ -67,6 +67,7 @@ sig_chld(int signo) //if the  child dies, we'll handle this here
 
 /* the procedure called for each request */
 void *processRequest (void *args) {
+  signal(SIGPIPE, SIG_IGN); //we'll attempt to ignore SIGPIPE / Broken Pipe
   int *newsockfd = (int *) args;
   char buffer[BUFFERLENGTH];
   int n;
