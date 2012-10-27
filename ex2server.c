@@ -9,11 +9,11 @@
 #include <string.h>
 #include <unistd.h>
 #include <pthread.h>
+#include <signal.h>
 
 #include <errno.h>
 
 #define BUFFERLENGTH 256
-
 /* displays error messages from system calls */
 void error(char *msg)
 {
@@ -54,6 +54,17 @@ char *filename;
 int returnValue; /* not used; need something to keep compiler happy */
 pthread_mutex_t mut; /* the lock */
 
+void
+sig_chld(int signo)
+{
+	pid_t	pid;
+	int		stat;
+
+	pid = wait(&stat);
+	printf("child %d terminated\n", pid);
+	return;
+}
+
 /* the procedure called for each request */
 void *processRequest (void *args) {
   int *newsockfd = (int *) args;
@@ -84,6 +95,10 @@ void *processRequest (void *args) {
     // }
     n = read (*newsockfd, buffer, BUFFERLENGTH -1);
     if (n < 0) {
+      if (errno == 104){
+    	int rv=-1;
+	pthread_exit(&rv);
+      }
       error ("ERROR reading from socket");
       shutdown(*newsockfd,SHUT_RDWR);
       close(*newsockfd);
@@ -147,6 +162,8 @@ void *processRequest (void *args) {
 
 
 int main(int argc, char *argv[]) {
+  signal(SIGPIPE, SIG_IGN);
+  signal(SIGCHLD, sig_chld);
   socklen_t clilen;
   int sockfd, portno;
   char buffer[BUFFERLENGTH];
@@ -222,7 +239,7 @@ int main(int argc, char *argv[]) {
    	  fprintf (stderr, "setting thread attributes failed!\n");
       exit (1);
     }
-    result = pthread_create (server_thread, &pthread_attr, processRequest, (void *) newsockfd);
+    result = pthread_create (server_thread, &pthread_attr,(void *) &processRequest, (void *) newsockfd);
     if (result != 0) {
       fprintf (stderr, "Thread creation failed!\n");
       exit (1);
