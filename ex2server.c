@@ -55,7 +55,7 @@ int returnValue; /* not used; need something to keep compiler happy */
 pthread_mutex_t mut; /* the lock */
 
 void
-sig_chld(int signo)
+sig_chld(int signo) //if the  child dies, we'll handle this here
 {
 	pid_t	pid;
 	int		stat;
@@ -71,34 +71,16 @@ void *processRequest (void *args) {
   char buffer[BUFFERLENGTH];
   int n;
   while (1) {
-    // int readTest = recv( *newsockfd, NULL, 0, MSG_DONTWAIT | MSG_PEEK );
-    // printf("ReadTest: %d\n", readTest);
-    // if (errno != 0){
-    //   printf("Errno: %d\n",errno);
-
-    //   close (*newsockfd); /* important to avoid memory leak */  
-    //   free (*newsockfd);
-
-    //   returnValue = errno;   //cannot guarantee that it stays constant 
-    //   pthread_exit (&returnValue);
-
-
-    //   // shutdown(*newsockfd,SHUT_RDWR);
-    //   // close(*newsockfd);
-    //   // return;
-    // }
-    // if (readTest == 0){
-    //   printf("Tom says: Connection Reset By Peer\n");
-
-    //   printf("Errno: %d\n",errno);
-    //   //return;
-    // }
+    
     n = read (*newsockfd, buffer, BUFFERLENGTH -1);
     if (n < 0) {
-      if (errno == 104){
-    	int rv=-1;
-	pthread_exit(&rv);
+      if (errno == 104){ //See, the thing is, by the time we've got connection reset by peer, (which is what 104 means)
+    	  int rv=-1;  // The socket's already dead, so we can't call close on it. 
+        //free(*newsockfd); //we can free it.. I think
+	      pthread_exit(&rv); //then terminate the thread, and return to parent. 
       }
+      //Otherwise we can do stuff here to wrap up.
+
       error ("ERROR reading from socket");
       shutdown(*newsockfd,SHUT_RDWR);
       close(*newsockfd);
@@ -162,8 +144,9 @@ void *processRequest (void *args) {
 
 
 int main(int argc, char *argv[]) {
-  signal(SIGPIPE, SIG_IGN);
-  signal(SIGCHLD, sig_chld);
+  signal(SIGPIPE, SIG_IGN); //we'll attempt to ignore SIGPIPE / Broken Pipe
+  signal(SIGCHLD, sig_chld); //we'll also handle sigchild when a child dies. 
+
   socklen_t clilen;
   int sockfd, portno;
   char buffer[BUFFERLENGTH];
