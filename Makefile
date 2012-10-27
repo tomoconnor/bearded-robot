@@ -1,15 +1,15 @@
 CC=gcc
 LIBS=-lpthread
 DIST=dist/
-CFLAGS=-ggdb
+CFLAGS=-ggdb -L/usr/lib/x86_64-linux-gnu/
 
 all: server client
 
 server: 
-	$(CC) $(CFLAGS) $(LIBS) -o $(DIST)server ex2server.c
+	$(CC) -o $(DIST)server $(CFLAGS) ex2server.c $(LIBS)
 
 client: 
-	$(CC) $(CFLAGS) $(LIBS) -o $(DIST)client ex2client.c
+	$(CC) -o $(DIST)client $(CFLAGS) ex2client.c $(LIBS)
 
 .PHONY: clean
 
