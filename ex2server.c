@@ -75,7 +75,7 @@ void *processRequest (void *args) {
     
     n = read (*newsockfd, buffer, BUFFERLENGTH -1);
     if (n < 0) {
-      if (errno == 104){ //See, the thing is, by the time we've got connection reset by peer, (which is what 104 means)
+      if (errno == ECONNRESET){ //See, the thing is, by the time we've got connection reset by peer, (which is what 104 means)
     	  int rv=-1;  // The socket's already dead, so we can't call close on it. 
         //free(*newsockfd); //we can free it.. I think
 	      pthread_exit(&rv); //then terminate the thread, and return to parent. 
